@@ -1,0 +1,110 @@
+name: ci-cd
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_LOCATION: eastus
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate shell scripts
+        run: bash -n scripts/*.sh
+
+      - name: Validate markdown docs exist
+        run: |
+          test -f README.md
+          test -f docs/13-architecture.md
+
+  deploy_dev:
+    if: github.ref == 'refs/heads/main'
+    needs: build_test
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infra (dev)
+        run: |
+          az group create -n rg-app-dev -l "$AZURE_LOCATION"
+          az deployment group create \
+            --resource-group rg-app-dev \
+            --template-file infra/bicep/main.bicep \
+            --parameters environment=dev
+
+  deploy_staging:
+    if: github.ref == 'refs/heads/main'
+    needs: deploy_dev
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infra (staging)
+        run: |
+          az group create -n rg-app-staging -l "$AZURE_LOCATION"
+          az deployment group create \
+            --resource-group rg-app-staging \
+            --template-file infra/bicep/main.bicep \
+            --parameters environment=staging
+
+  deploy_prod:
+    if: github.ref == 'refs/heads/main'
+    needs: deploy_staging
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infra (prod)
+        run: |
+          az group create -n rg-app-prod -l "$AZURE_LOCATION"
+          az deployment group create \
+            --resource-group rg-app-prod \
+            --template-file infra/bicep/main.bicep \
+            --parameters environment=prod
+
+      - name: Versioning
+        run: |
+          VERSION_TAG="v$(date +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
+          echo "Release candidate tag: ${VERSION_TAG}"
+
+      - name: Rollback strategy (documented command)
+        run: |
+          echo "Rollback uses previous successful artifact and redeploy command:"
+          echo "az deployment group create --resource-group rg-app-prod --template-file infra/bicep/main.bicep --parameters environment=prod"
