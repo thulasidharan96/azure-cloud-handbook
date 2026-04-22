@@ -3,7 +3,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.100"
+      version = "~> 3.100.0"
     }
   }
 }
@@ -25,6 +25,12 @@ resource "azurerm_service_plan" "this" {
   sku_name            = var.app_service_sku
 }
 
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 resource "azurerm_linux_web_app" "this" {
   name                = "webapp-${var.environment}-${random_string.suffix.result}"
   location            = azurerm_resource_group.this.location
@@ -39,10 +45,4 @@ resource "azurerm_linux_web_app" "this" {
   site_config {
     always_on = true
   }
-}
-
-resource "random_string" "suffix" {
-  length  = 6
-  special = false
-  upper   = false
 }

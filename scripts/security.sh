@@ -4,7 +4,8 @@ set -euo pipefail
 ENVIRONMENT="${ENVIRONMENT:-dev}"
 LOCATION="${LOCATION:-eastus}"
 RG_SEC="rg-sec-${ENVIRONMENT}"
-KV_NAME="kv-${ENVIRONMENT}-$RANDOM"
+SUB_HASH="$(az account show --query id -o tsv | tr -d '-' | cut -c1-8)"
+KV_NAME="${KV_NAME:-kv-${ENVIRONMENT}-${SUB_HASH}}"
 ASSIGNEE="${ASSIGNEE:-}"
 
 az keyvault create -g "$RG_SEC" -n "$KV_NAME" -l "$LOCATION" --enable-rbac-authorization true
