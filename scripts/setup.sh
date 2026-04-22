@@ -8,9 +8,10 @@ RG_APP="rg-app-${ENVIRONMENT}"
 RG_DATA="rg-data-${ENVIRONMENT}"
 RG_SEC="rg-sec-${ENVIRONMENT}"
 
-az group create --name "$RG_NET" --location "$LOCATION"
-az group create --name "$RG_APP" --location "$LOCATION"
-az group create --name "$RG_DATA" --location "$LOCATION"
-az group create --name "$RG_SEC" --location "$LOCATION"
+for RG in "$RG_NET" "$RG_APP" "$RG_DATA" "$RG_SEC"; do
+  if [[ "$(az group exists --name "$RG")" != "true" ]]; then
+    az group create --name "$RG" --location "$LOCATION" >/dev/null
+  fi
+done
 
 echo "Created baseline resource groups for $ENVIRONMENT in $LOCATION"

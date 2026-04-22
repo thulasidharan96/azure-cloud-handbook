@@ -15,6 +15,8 @@ if [[ -n "$ASSIGNEE" ]]; then
   az role assignment create --assignee "$ASSIGNEE" --role "Key Vault Secrets User" --scope "$SCOPE"
 fi
 
-az keyvault secret set --vault-name "$KV_NAME" --name "example-secret" --value "replace-me"
+if [[ -n "${EXAMPLE_SECRET_VALUE:-}" ]]; then
+  az keyvault secret set --vault-name "$KV_NAME" --name "example-secret" --value "$EXAMPLE_SECRET_VALUE" >/dev/null
+fi
 
 echo "Security baseline created with Key Vault: $KV_NAME"

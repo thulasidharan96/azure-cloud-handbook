@@ -103,6 +103,13 @@ jobs:
         run: |
           VERSION_TAG="v$(date +%Y.%m.%d).${GITHUB_RUN_NUMBER}"
           echo "Release candidate tag: ${VERSION_TAG}"
+          echo "${VERSION_TAG}" > version.txt
+
+      - name: Publish version artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-version
+          path: version.txt
 
       - name: Rollback strategy (documented command)
         run: |
